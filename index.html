@@ -93,7 +93,34 @@ input[type=range]{accent-color:var(--lamp);width:100%}
 .pill.ok{color:var(--go);border-color:rgba(63,224,143,.4)}
 .pill.err{color:var(--bad);border-color:rgba(255,77,94,.4)}
 
+/* 좁은 화면: 한 줄로 쌓되 순서를 지정 */
+.colL,.colR{display:contents}
+.a-logo{order:1}.a-players{order:2}.a-packs{order:3}.a-rules{order:4}.a-dev{order:5}.a-start{order:6}.a-note{order:7}
+/* 가로 화면(컴퓨터): 왼쪽 = 참가자·규칙·시작, 오른쪽 = 단어 세트·장치 점검 */
+@media (min-width:980px){
+  #setup{padding-block:20px}
+  .setupwrap{max-width:1200px;margin-block:auto;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:22px;align-items:start}
+  .colL,.colR{display:flex;flex-direction:column;gap:12px;min-width:0}
+  .logo{padding-block:0}
+  .logo h1{font-size:44px}
+  .logo p{font-size:14px;margin-top:2px}
+  .card{padding:14px 16px;gap:10px}
+  .player input{padding:8px 12px}
+  .btn.icon{width:36px;height:36px}
+  .seg button{padding:6px 14px}
+  .dev{gap:10px}.devrow{padding-top:10px}
+  .packs{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .a-start{font-size:24px;padding:18px}
+}
+
 /* ---------- Game ---------- */
+.sign{position:absolute;z-index:2;left:50%;top:calc(58px + env(safe-area-inset-top,0px));transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:8px;width:min(92%,760px);pointer-events:none}
+.sign .w{font-family:var(--display);font-size:clamp(26px,5.2vw,64px);line-height:1.05;color:#fff;text-align:center;
+  text-shadow:0 3px 0 rgba(0,0,0,.45),0 0 24px rgba(12,15,30,.9);word-break:break-word}
+.sign .bar{width:min(100%,420px);height:8px;border-radius:5px;background:rgba(43,49,96,.8);overflow:hidden}
+.sign .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--go),var(--lamp) 60%,var(--bad))}
+.sign .tag{font-size:12px;letter-spacing:1.5px;color:var(--muted);font-weight:700}
 #game{flex-direction:column;overflow:hidden;touch-action:manipulation}
 #cv{position:absolute;inset:0;width:100%;height:100%;display:block}
 .hud{position:relative;z-index:2;display:flex;align-items:center;gap:10px;
@@ -119,6 +146,16 @@ input[type=range]{accent-color:var(--lamp);width:100%}
 .ctrls .pass{border-color:rgba(63,224,143,.5);color:var(--go)}
 .ctrls .fail{border-color:rgba(255,77,94,.5);color:var(--bad)}
 .keys{font-size:11px;color:var(--muted);text-align:center}
+.bottom{align-items:center}
+.bottom > *{width:min(100%,780px)}
+@media (min-width:980px){
+  .heard{font-size:19px}
+  .heard .pct{font-size:18px}
+  .ctrls .btn{font-size:16px;padding:14px 8px}
+  .keys{font-size:13px}
+  .hud .who{font-size:18px}
+  .hud .stat{font-size:22px}
+}
 @media (max-width:520px){.keys{display:none}}
 
 .overlay{position:absolute;inset:0;z-index:5;display:none;align-items:center;justify-content:center;background:rgba(8,10,22,.72);
@@ -153,31 +190,32 @@ input[type=range]{accent-color:var(--lamp);width:100%}
 
 <!-- ================= SETUP ================= -->
 <section class="screen on" id="setup" aria-label="게임 설정">
-  <div class="wrap">
-    <header class="logo">
+  <div class="wrap setupwrap">
+    <div class="colL">
+    <header class="logo a-logo">
       <h1><span class="say">SAY IT</span><br>OR <span class="crash">CRASH</span></h1>
       <p>벽에 적힌 영어 단어를 소리 내 읽으면 벽이 부서져요. 제때 못 읽으면 차가 벽에 튕겨 뒤로 밀려나고, 제대로 읽을 때까지 같은 벽에 다시 도전해야 해요. 한 기기로 돌아가며 플레이하는 친구 대결용이에요.</p>
     </header>
-
-    <div class="card">
+    <div class="card a-players">
       <h2>참가자 <button class="btn small" id="addPlayer" type="button">+ 추가</button></h2>
       <div class="players" id="players"></div>
     </div>
-
-    <div class="card">
-      <h2>단어 세트</h2>
-      <div class="packs" id="packs"></div>
-      <textarea id="custom" placeholder="단어를 한 줄에 하나씩 (또는 쉼표로 구분)&#10;예: Worcestershire, Squirrel, Anemone" hidden></textarea>
-    </div>
-
-    <div class="card">
+    <div class="card a-rules">
       <h2>규칙</h2>
       <div class="opt"><label>벽이 오는 속도</label><div class="seg" id="segSpeed"></div></div>
       <div class="opt"><label>판정 기준</label><div class="seg" id="segJudge"></div></div>
       <div class="opt"><label>1인당 벽 개수</label><div class="seg" id="segWalls"></div></div>
     </div>
-
-    <div class="card">
+    <button class="btn primary big a-start" id="startBtn" type="button">게임 시작</button>
+    <p class="note a-note" style="text-align:center;margin:0">Chrome · Edge 권장. 음성 인식이 안 되는 브라우저에서는 친구가 [통과]/[실패] 버튼으로 심판을 봐요.</p>
+    </div>
+    <div class="colR">
+    <div class="card a-packs">
+      <h2>단어 세트</h2>
+      <div class="packs" id="packs"></div>
+      <textarea id="custom" placeholder="단어를 한 줄에 하나씩 (또는 쉼표로 구분)&#10;예: Worcestershire, Squirrel, Anemone" hidden></textarea>
+    </div>
+    <div class="card a-dev">
       <h2>마이크 · 스피커 점검</h2>
       <div class="support" id="support"></div>
       <div class="dev">
@@ -207,9 +245,7 @@ input[type=range]{accent-color:var(--lamp);width:100%}
         </div>
       </div>
     </div>
-
-    <button class="btn primary big" id="startBtn" type="button">게임 시작</button>
-    <p class="note" style="text-align:center;margin:0">Chrome · Edge 권장. 음성 인식이 안 되는 브라우저에서는 친구가 [통과]/[실패] 버튼으로 심판을 봐요.</p>
+    </div>
   </div>
 </section>
 
@@ -223,6 +259,11 @@ input[type=range]{accent-color:var(--lamp);width:100%}
     <span class="mic" id="hudMic"><i></i><span id="hudMicTxt">마이크 꺼짐</span></span>
     <span class="stat" id="hudScore">0</span>
   </div>
+  <div class="sign" id="sign" hidden>
+    <span class="tag" id="signTag">SAY IT</span>
+    <span class="w" id="signWord"></span>
+    <span class="bar" aria-hidden="true"><i id="signBar"></i></span>
+  </div>
   <div class="bottom">
     <div class="heard"><span class="txt" id="heardTxt"><em>들린 소리</em>—</span><span class="pct" id="heardPct"></span></div>
     <div class="ctrls">
@@ -231,7 +272,7 @@ input[type=range]{accent-color:var(--lamp);width:100%}
       <button class="btn fail" id="bFail" type="button">실패</button>
       <button class="btn" id="bPause" type="button">멈춤</button>
     </div>
-    <div class="keys">키보드: Space 통과 · X 실패 · L 발음 듣기 · P 멈춤</div>
+    <div class="keys">키보드: Enter 출발 · Space 통과 · X 실패 · L 발음 듣기 · P 멈춤</div>
   </div>
 
   <div class="overlay" id="ovTurn">
@@ -718,6 +759,7 @@ $('#quitBtn').addEventListener('click', () => { pause(false); finish(); });
 $('#skipBtn').addEventListener('click', () => { pause(false); skipWall(); });
 document.addEventListener('keydown', e => {
   if (!G.active || e.target.matches('input,textarea,select')) return;
+  if (e.key === 'Enter' && G.phase === 'intro' && $('#ovTurn').classList.contains('on')){ e.preventDefault(); $('#turnGo').click(); return; }
   if (e.code === 'Space'){ e.preventDefault(); if (G.phase === 'intro') $('#turnGo').click(); else if (!G.paused) judgePass(); }
   else if (e.key === 'x' || e.key === 'X') judgeFail();
   else if (e.key === 'l' || e.key === 'L') listen();
@@ -862,10 +904,11 @@ function drawWall(w){
   }
 }
 function drawCar(t){
-  const cw = Math.min(200, W*0.34), ch = cw*0.42;
+  const cw = Math.min(W > H ? 250 : 200, W*0.34), ch = cw*0.42;
   const bob = G.phase === 'bump' ? 0 : Math.sin(t*14)*1.2;
-  const x = CX - cw/2, y = H*0.86 - ch + bob;
-  cx2.fillStyle = 'rgba(0,0,0,.45)'; cx2.beginPath(); cx2.ellipse(CX, H*0.86 + 4, cw*0.56, ch*0.14, 0, 0, 7); cx2.fill();
+  const base = Math.min(H*0.86, H - 150);   // 아래 버튼 영역에 가리지 않게
+  const x = CX - cw/2, y = base - ch + bob;
+  cx2.fillStyle = 'rgba(0,0,0,.45)'; cx2.beginPath(); cx2.ellipse(CX, base + 4, cw*0.56, ch*0.14, 0, 0, 7); cx2.fill();
   // 바퀴
   cx2.fillStyle = '#101018'; cx2.fillRect(x + cw*0.06, y + ch*0.72, cw*0.16, ch*0.32); cx2.fillRect(x + cw*0.78, y + ch*0.72, cw*0.16, ch*0.32);
   // 차체
@@ -885,6 +928,20 @@ function drawCar(t){
 function roundRect(x, y, w, h, r){
   cx2.beginPath(); cx2.moveTo(x + r, y); cx2.arcTo(x + w, y, x + w, y + h, r); cx2.arcTo(x + w, y + h, x, y + h, r);
   cx2.arcTo(x, y + h, x, y, r); cx2.arcTo(x, y, x + w, y, r); cx2.closePath();
+}
+
+// 화면 위쪽 큰 단어 표지판: 멀리 있는 벽 글씨가 작아도 바로 읽을 수 있게 + 남은 거리 막대
+const signEl = $('#sign'), signWord = $('#signWord'), signTag = $('#signTag'), signBar = $('#signBar');
+function updateSign(){
+  const w = G.wall;
+  if (!w || G.phase === 'intro'){ if (!signEl.hidden) signEl.hidden = true; return; }
+  signEl.hidden = false;
+  if (signWord.textContent !== w.display) signWord.textContent = w.display;
+  const zs = w.bumps ? ZBACK : Z0;
+  const prox = Math.max(0, Math.min(1, 1 - (w.z - ZHIT) / (zs - ZHIT)));
+  signBar.style.width = (prox*100).toFixed(1) + '%';
+  const tag = G.phase === 'bump' ? 'BUMP! 뒤로 밀려나는 중' : (w.bumps ? `TRY ${w.bumps + 1}` : 'SAY IT');
+  if (signTag.textContent !== tag){ signTag.textContent = tag; signTag.style.color = G.phase === 'bump' ? 'var(--bad)' : (w.bumps ? 'var(--lamp)' : ''); }
 }
 
 let last = performance.now();
@@ -942,15 +999,8 @@ function render(t){
     cx2.fillStyle = '#3fe08f'; cx2.fillText(f.text, f.x, f.y);
   }
   cx2.globalAlpha = 1;
-  if (G.phase === 'bump'){
-    cx2.font = `${Math.round(Math.min(W*0.12, H*0.09))}px Bungee, "Arial Black", sans-serif`;
-    cx2.fillStyle = '#ff4d5e'; cx2.fillText('BUMP! TRY AGAIN', CX, HOR*0.5, W*0.92);
-  }
-  if (G.wall && G.wall.bumps && G.phase === 'run'){
-    cx2.font = `${Math.round(Math.min(W*0.05, 22))}px Bungee, "Arial Black", sans-serif`;
-    cx2.fillStyle = 'rgba(255,200,61,.9)'; cx2.fillText(`TRY ${G.wall.bumps + 1}`, CX, HOR*0.62);
-  }
   cx2.restore();
+  updateSign();
   if (G.flash > 0){ cx2.fillStyle = `rgba(${G.flashColor},${G.flash*0.45})`; cx2.fillRect(0, 0, W, H); }
 }
 
