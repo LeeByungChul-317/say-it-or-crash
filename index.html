@@ -97,21 +97,37 @@ input[type=range]{accent-color:var(--lamp);width:100%}
 .colL,.colR{display:contents}
 .a-logo{order:1}.a-players{order:2}.a-packs{order:3}.a-rules{order:4}.a-dev{order:5}.a-start{order:6}.a-note{order:7}
 /* 가로 화면(컴퓨터): 왼쪽 = 참가자·규칙·시작, 오른쪽 = 단어 세트·장치 점검 */
+/* 가로 화면(컴퓨터): 한 화면 대시보드
+   맨 위 = 로고·설명·시작 버튼 / 아래 3열 = [참가자+규칙] [단어 세트] [마이크·스피커 점검] */
 @media (min-width:980px){
-  #setup{padding-block:20px}
-  .setupwrap{max-width:1200px;margin-block:auto;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:22px;align-items:start}
-  .colL,.colR{display:flex;flex-direction:column;gap:12px;min-width:0}
-  .logo{padding-block:0}
-  .logo h1{font-size:44px}
-  .logo p{font-size:14px;margin-top:2px}
+  #setup{padding-block:max(16px,2.5vh)}
+  .setupwrap{max-width:1440px;margin-block:auto;display:grid;gap:14px 18px;
+    grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) minmax(0,1.15fr);
+    grid-template-rows:auto auto 1fr auto;
+    grid-template-areas:"logo logo start" "players packs dev" "rules packs dev" "note note note"}
+  .a-logo{grid-area:logo}.a-players{grid-area:players}.a-rules{grid-area:rules}
+  .a-packs{grid-area:packs}.a-dev{grid-area:dev}.a-start{grid-area:start}.a-note{grid-area:note}
+  .a-rules{align-self:stretch}
+  .logo{flex-direction:row;align-items:center;gap:28px;padding-block:0}
+  .logo h1{font-size:clamp(34px,3.2vw,48px);white-space:nowrap}
+  .logo h1 br{display:none}
+  .logo p{font-size:13.5px;margin:0;max-width:60ch}
+  .a-start{align-self:stretch;font-size:clamp(20px,1.8vw,26px);padding:10px 16px}
+  .a-note{font-size:12px}
   .card{padding:14px 16px;gap:10px}
   .player input{padding:8px 12px}
   .btn.icon{width:36px;height:36px}
-  .seg button{padding:6px 14px}
-  .dev{gap:10px}.devrow{padding-top:10px}
-  .packs{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .a-start{font-size:24px;padding:18px}
+  .seg button{padding:6px 12px}
+  .opt{grid-template-columns:96px 1fr}
+  .packs{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .pack{padding:10px 12px;gap:4px}
+  .dev{gap:10px}
+  .devrow{grid-template-columns:92px 1fr;gap:10px;padding-top:10px}
 }
+@media (min-width:1240px){ .packs{grid-template-columns:repeat(3,minmax(0,1fr))} }
+/* 큰 모니터(풀HD 이상): 화면이 휑하지 않게 전체를 키움 */
+@media (min-width:1680px) and (min-height:900px){ .setupwrap{zoom:1.25} }
+@media (min-width:2300px) and (min-height:1250px){ .setupwrap{zoom:1.6} }
 
 /* ---------- Game ---------- */
 .sign{position:absolute;z-index:2;left:50%;top:calc(58px + env(safe-area-inset-top,0px));transform:translateX(-50%);
@@ -193,7 +209,7 @@ input[type=range]{accent-color:var(--lamp);width:100%}
   <div class="wrap setupwrap">
     <div class="colL">
     <header class="logo a-logo">
-      <h1><span class="say">SAY IT</span><br>OR <span class="crash">CRASH</span></h1>
+      <h1><span class="say">SAY IT</span> <br>OR <span class="crash">CRASH</span></h1>
       <p>벽에 적힌 영어 단어를 소리 내 읽으면 벽이 부서져요. 제때 못 읽으면 차가 벽에 튕겨 뒤로 밀려나고, 제대로 읽을 때까지 같은 벽에 다시 도전해야 해요. 한 기기로 돌아가며 플레이하는 친구 대결용이에요.</p>
     </header>
     <div class="card a-players">
@@ -346,7 +362,7 @@ const PACKS = {
 /* ---------------- settings ---------------- */
 const SPEEDS = { slow:{label:'느림', v:4.6}, normal:{label:'보통', v:6.5}, fast:{label:'빠름', v:9.5} };
 const JUDGE  = { easy:{label:'관대', v:.70}, normal:{label:'보통', v:.80}, strict:{label:'엄격', v:.90} };
-const WALLS  = { 3:{label:'3개'}, 5:{label:'5개'}, 10:{label:'10개 (세트 전체)'} };
+const WALLS  = { 3:{label:'3개'}, 5:{label:'5개'}, 10:{label:'10개 (전체)'} };
 const S = {
   players: store.get('players', ['Player 1','Player 2']),
   pack:    store.get('pack_v2', 'set1'),
