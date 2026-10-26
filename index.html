@@ -137,6 +137,21 @@ input[type=range]{accent-color:var(--lamp);width:100%}
 .sign .bar{width:min(100%,420px);height:8px;border-radius:5px;background:rgba(43,49,96,.8);overflow:hidden}
 .sign .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--go),var(--lamp) 60%,var(--bad))}
 .sign .tag{font-size:12px;letter-spacing:1.5px;color:var(--muted);font-weight:700}
+.sign .mean{font-size:clamp(15px,1.7vw,22px);font-weight:700;color:var(--lamp);text-align:center;text-shadow:0 2px 8px rgba(12,15,30,.95);margin-top:-2px}
+.sign .mean:empty{display:none}
+/* 음성 판정 상태 칩: 초록 = 지금 말하면 판정됨 / 회색 = 지금은 무시됨 / 노랑 = 방금 소리를 받아씀 */
+.listen{display:inline-flex;align-items:center;gap:10px;margin-top:4px;padding:8px 16px 8px 12px;border-radius:999px;
+  font-weight:900;font-size:clamp(13px,1.2vw,16px);border:2px solid var(--line);background:rgba(12,15,30,.85);color:var(--muted);
+  transition:background .15s,border-color .15s,color .15s}
+.listen .lv{display:inline-flex;align-items:flex-end;gap:3px;height:20px}
+.listen .lv i{width:4px;height:4px;border-radius:2px;background:currentColor;transition:height .06s linear}
+.listen:not(.live):not(.heard) .lv{display:none}
+.listen.live{color:var(--go);border-color:var(--go);box-shadow:0 0 18px rgba(63,224,143,.35)}
+.listen.heard{color:#1a1300;background:var(--lamp);border-color:var(--lamp)}
+.listen.ok{color:#06210f;background:var(--go);border-color:var(--go)}
+.listen.bad{color:var(--bad);border-color:var(--bad)}
+.listen.live #listenTxt::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor;margin-right:8px;vertical-align:middle;animation:blink 1s infinite}
+@media (prefers-reduced-motion:reduce){.listen.live #listenTxt::before{animation:none}}
 #game{flex-direction:column;overflow:hidden;touch-action:manipulation}
 #cv{position:absolute;inset:0;width:100%;height:100%;display:block}
 .hud{position:relative;z-index:2;display:flex;align-items:center;gap:10px;
@@ -221,6 +236,7 @@ input[type=range]{accent-color:var(--lamp);width:100%}
       <div class="opt"><label>벽이 오는 속도</label><div class="seg" id="segSpeed"></div></div>
       <div class="opt"><label>판정 기준</label><div class="seg" id="segJudge"></div></div>
       <div class="opt"><label>1인당 벽 개수</label><div class="seg" id="segWalls"></div></div>
+      <div class="opt"><label>한글 뜻</label><div class="seg" id="segMean"></div></div>
     </div>
     <button class="btn primary big a-start" id="startBtn" type="button">게임 시작</button>
     <p class="note a-note" style="text-align:center;margin:0">Chrome · Edge 권장. 음성 인식이 안 되는 브라우저에서는 친구가 [통과]/[실패] 버튼으로 심판을 봐요.</p>
@@ -229,7 +245,7 @@ input[type=range]{accent-color:var(--lamp);width:100%}
     <div class="card a-packs">
       <h2>단어 세트</h2>
       <div class="packs" id="packs"></div>
-      <textarea id="custom" placeholder="단어를 한 줄에 하나씩 (또는 쉼표로 구분)&#10;예: Worcestershire, Squirrel, Anemone" hidden></textarea>
+      <textarea id="custom" placeholder="단어를 한 줄에 하나씩 (또는 쉼표로 구분). '= 뜻'을 붙이면 한글 뜻도 나와요&#10;예: Worcestershire = 우스터 소스&#10;Squirrel = 다람쥐" hidden></textarea>
     </div>
     <div class="card a-dev">
       <h2>마이크 · 스피커 점검</h2>
@@ -278,7 +294,12 @@ input[type=range]{accent-color:var(--lamp);width:100%}
   <div class="sign" id="sign" hidden>
     <span class="tag" id="signTag">SAY IT</span>
     <span class="w" id="signWord"></span>
+    <span class="mean" id="signMean"></span>
     <span class="bar" aria-hidden="true"><i id="signBar"></i></span>
+    <span class="listen wait" id="listen" role="status">
+      <span class="lv" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      <span id="listenTxt">준비 중</span>
+    </span>
   </div>
   <div class="bottom">
     <div class="heard"><span class="txt" id="heardTxt"><em>들린 소리</em>—</span><span class="pct" id="heardPct"></span></div>
@@ -359,10 +380,46 @@ const PACKS = {
   custom: { name:'직접 입력', desc:'우리끼리 단어로', words:[] }
 };
 
+/* ---------------- 한글 뜻 ---------------- */
+const MEAN = {
+  // 도시·기후·재난 50단어
+  'aquifer':'대수층 (지하수를 품은 지층)','typhoon':'태풍','catastrophe':'대재앙, 큰 재해','tornado':'토네이도, 회오리바람',
+  'hurricane':'허리케인 (대서양 열대저기압)','carbon dioxide':'이산화탄소','anthropogenic':'인위적인, 인간 활동에 의한',
+  'susceptibility':'민감성, (피해를) 입기 쉬움','precipitation':'강수(량)','municipality':'지방자치단체, 시·군',
+  'landslide':'산사태','biodiversity':'생물다양성','urbanization':'도시화','displacement':'(강제) 이주, 이재',
+  'mitigation':'완화, 저감','gentrification':'젠트리피케이션, 둥지 내몰림','meteorological':'기상의, 기상학의',
+  'adaptation':'적응','greenhouse':'온실','neighborhood':'동네, 근린(지역)','methane':'메탄','evacuation':'대피',
+  'climate':'기후','wildfire':'산불','estuary':'하구, 강어귀','tsunami':'쓰나미, 지진해일','erosion':'침식',
+  'preparedness':'대비 (태세)','metropolitan':'대도시의, 광역의','contingency':'비상사태, 만일의 경우',
+  'sustainability':'지속가능성','hydrological':'수문(학)의, 물 순환의','suburban':'교외의','infrastructure':'기반시설, 인프라',
+  'emissions':'배출(량)','avalanche':'눈사태','inundation':'침수, 범람','resilience':'회복력','embankment':'제방, 둑',
+  'drought':'가뭄','levee':'제방 (강둑)','coastline':'해안선','storm surge':'폭풍해일','atmosphere':'대기',
+  'pedestrian':'보행자','vulnerability':'취약성','reconstruction':'재건, 복구','torrential':'억수 같은, 집중호우의',
+  'earthquake':'지진','thoroughfare':'간선도로, 주요 도로',
+  // 틱톡 악마의 단어
+  'worcestershire':'우스터셔 (영국 지명·소스 이름)','bacteriology':'세균학','jewelry':'보석류, 장신구','rural':'시골의, 농촌의',
+  'squirrel':'다람쥐','anemone':'아네모네 (꽃)','phenomenon':'현상','mischievous':'장난기 많은','colonel':'대령',
+  'sixth':'여섯 번째','isthmus':'지협','otorhinolaryngologist':'이비인후과 의사','thesaurus':'유의어 사전',
+  'specific':'구체적인, 특정한','onomatopoeia':'의성어','quinoa':'퀴노아 (곡물)','brewery':'양조장','february':'2월',
+  'particularly':'특히','remuneration':'보수, 급여','epitome':'전형, 본보기','choir':'합창단','hyperbole':'과장법',
+  'anonymous':'익명의','entrepreneur':'기업가, 창업가','ignominious':'수치스러운','synecdoche':'제유법',
+  'gnocchi':'뇨키 (감자 파스타)','prejudice':'편견','vulnerable':'취약한',
+  // 한국인 약점
+  'really':'정말','rarely':'좀처럼 ~하지 않는','literally':'문자 그대로','library':'도서관','thoroughly':'철저히',
+  'world':'세계','girl':'소녀','clothes':'옷','through':'~을 통해','fifth':'다섯 번째','vegetable':'채소',
+  'volleyball':'배구','pharmacy':'약국','refrigerator':'냉장고','strawberry':'딸기','three':'셋, 3','lorry':'화물차 (영국)',
+  'gorilla':'고릴라','coffee':'커피',
+  // 워밍업
+  'water':'물','banana':'바나나','chocolate':'초콜릿','comfortable':'편안한','restaurant':'식당','schedule':'일정',
+  'tomato':'토마토','camera':'카메라','elephant':'코끼리','computer':'컴퓨터','hamburger':'햄버거','wednesday':'수요일',
+  'family':'가족','interesting':'흥미로운','vitamin':'비타민'
+};
+
 /* ---------------- settings ---------------- */
 const SPEEDS = { slow:{label:'느림', v:4.6}, normal:{label:'보통', v:6.5}, fast:{label:'빠름', v:9.5} };
 const JUDGE  = { easy:{label:'관대', v:.70}, normal:{label:'보통', v:.80}, strict:{label:'엄격', v:.90} };
 const WALLS  = { 3:{label:'3개'}, 5:{label:'5개'}, 10:{label:'10개 (전체)'} };
+const MEANING = { show:{label:'보기'}, hide:{label:'숨기기'} };
 const S = {
   players: store.get('players', ['Player 1','Player 2']),
   pack:    store.get('pack_v2', 'set1'),
@@ -371,7 +428,8 @@ const S = {
   judge:   store.get('judge', 'normal'),
   walls:   String(store.get('walls_v2', '10')),
   voice:   store.get('voice', ''),
-  rate:    store.get('rate', 0.85)
+  rate:    store.get('rate', 0.85),
+  meaning: store.get('meaning', 'show')
 };
 function save(){ for (const k of Object.keys(S)) store.set(k === 'pack' ? 'pack_v2' : k === 'walls' ? 'walls_v2' : k, S[k]); }
 if (!PACKS[S.pack]) S.pack = 'set1';
@@ -610,9 +668,12 @@ function bestMatch(alts, word){
   }
   return { best, bestText };
 }
+// 직접 입력은 "Word = 뜻" 형식이면 뜻도 함께 표시
 function parseWord(str){
-  const parts = String(str).split('|').map(s => s.trim()).filter(Boolean);
-  return { display: parts[0], forms: parts.map(norm).filter(Boolean) };
+  const [wpart, mpart] = String(str).split(/\s*[=＝]\s*/);
+  const parts = wpart.split('|').map(s => s.trim()).filter(Boolean);
+  const display = parts[0] || '';
+  return { display, forms: parts.map(norm).filter(Boolean), mean: (mpart || '').trim() || MEAN[display.toLowerCase()] || '' };
 }
 function shuffle(a){ for (let i = a.length-1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
@@ -624,12 +685,13 @@ const G = {
   players:[], turn:0, wallNo:0, wall:null, pool:[],
   speed:6.5, threshold:.8, wallsPer:5,
   travel:0, shake:0, flash:0, flashColor:'255,77,94', timer:0,
-  parts:[], floats:[], log:[]
+  parts:[], floats:[], log:[], heardAt:0, lastWall:null
 };
 
 function buildPool(){
+  // '= 뜻'을 쓴 경우 뜻 안의 쉼표가 잘리지 않게 줄 단위로만 나눔
   let src = S.pack === 'custom'
-    ? S.custom.split(/[\n,]+/).map(s => s.trim()).filter(Boolean)
+    ? S.custom.split(/[=＝]/.test(S.custom) ? /\n+/ : /[\n,]+/).map(s => s.trim()).filter(Boolean)
     : PACKS[S.pack].words.slice();
   return shuffle(src.map(parseWord).filter(w => w.display && w.forms.length));
 }
@@ -653,6 +715,7 @@ function startGame(){
   // 사용자 클릭 직후에 마이크/스피커를 깨워 둠 (브라우저 자동재생 정책)
   if (hasTTS){ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); }
   if (SR) Rec.start(onHeard); else micState(false);
+  if (SR) openLevel();
   beginTurnOverlay();
 }
 function alertInline(msg){
@@ -698,6 +761,7 @@ function setHeard(txt, pct){
 function onHeard(alts, isFinal){
   if (!G.active || G.paused || G.phase !== 'run' || !G.wall) return;
   if (performance.now() < ignoreUntil) return;
+  G.heardAt = performance.now();
   const m = bestMatch(alts, G.wall);
   if (m.best > G.wall.best){ G.wall.best = m.best; G.wall.bestText = m.bestText; }
   setHeard(alts[0].trim(), Math.round(m.best*100) + '%');
@@ -715,7 +779,7 @@ function clearWall(heardText, acc, manual){
   // 한 번에 성공: 100 + 속도 보너스(최대 100). 부딪힐 때마다 기본점수 30점씩 감점(최소 10점)
   const pts = Math.max(10, 100 - w.bumps*30) + Math.round(frac * (w.bumps ? 30 : 100));
   p.score += pts; p.hit++;
-  G.log.push({ player:p.name, word:w.display, ok:true, tries:w.bumps + 1, heard: manual ? '(심판 통과)' : heardText, acc: manual ? null : acc, pts });
+  G.log.push({ player:p.name, word:w.display, mean:w.mean, ok:true, tries:w.bumps + 1, heard: manual ? '(심판 통과)' : heardText, acc: manual ? null : acc, pts });
   // 벽돌 파편
   const r = wallRect(w.z), rows = 7, cols = 6, bw = r.w/cols, bh = r.h/rows;
   for (let y = 0; y < rows; y++) for (let x = -1; x < cols; x++){
@@ -727,7 +791,7 @@ function clearWall(heardText, acc, manual){
   }
   G.floats.push({ text:'+' + pts, x:r.x + r.w/2, y:r.y + r.h*0.4, life:1 });
   G.flash = .35; G.flashColor = '63,224,143';
-  G.wall = null; G.phase = 'cleared'; G.timer = 0.85;
+  G.lastWall = w; G.wall = null; G.phase = 'cleared'; G.timer = 0.85;
   setHeard(manual ? '심판 통과' : heardText, acc ? Math.round(acc*100) + '% ✓' : '✓');
   updateHud();
 }
@@ -743,7 +807,7 @@ function crash(manual){
 function skipWall(){
   const w = G.wall, p = G.players[G.turn];
   if (!w || !G.active) return;
-  G.log.push({ player:p.name, word:w.display, ok:false, tries:w.bumps, heard: w.bestText || '(인식 안 됨)', acc:w.best, pts:0 });
+  G.log.push({ player:p.name, word:w.display, mean:w.mean, ok:false, tries:w.bumps, heard: w.bestText || '(인식 안 됨)', acc:w.best, pts:0 });
   G.wall = null; G.phase = 'between';
   if (hasTTS) speechSynthesis.cancel();
   afterWall();
@@ -785,7 +849,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && G.a
 
 /* ---------------- results ---------------- */
 function finish(){
-  G.active = false; G.phase = 'idle'; Rec.stop(); if (hasTTS) speechSynthesis.cancel();
+  G.active = false; G.phase = 'idle'; Rec.stop(); closeLevel(); if (hasTTS) speechSynthesis.cancel();
   const ranked = G.players.slice().sort((a, b) => b.score - a.score);
   $('#rank').innerHTML = '';
   ranked.forEach((p, i) => {
@@ -804,7 +868,9 @@ function finish(){
     tr.appendChild(c(l.player));
     const wtd = document.createElement('td'); wtd.className = 'w';
     const wb = document.createElement('button'); wb.type = 'button'; wb.textContent = l.word; wb.addEventListener('click', () => speak(l.word));
-    wtd.appendChild(wb); tr.appendChild(wtd);
+    wtd.appendChild(wb);
+    if (l.mean){ const mn = document.createElement('div'); mn.className = 'sub'; mn.style.cssText = 'font-weight:400;font-size:12px;color:var(--muted)'; mn.textContent = l.mean; wtd.appendChild(mn); }
+    tr.appendChild(wtd);
     tr.appendChild(c(l.ok ? `${l.tries === 1 ? '한 번에' : l.tries + '번째에'} 성공 +${l.pts}` : `건너뜀 (${l.tries}번 충돌)`, l.ok ? 'ok' : 'no'));
     tr.appendChild(c(l.heard + (l.acc != null ? ` (${Math.round(l.acc*100)}%)` : '')));
     tb.appendChild(tr);
@@ -946,13 +1012,62 @@ function roundRect(x, y, w, h, r){
   cx2.arcTo(x, y + h, x, y, r); cx2.arcTo(x, y, x + w, y, r); cx2.closePath();
 }
 
+/* 게임 중 마이크 음량 (판정 칩의 막대용). 실패해도 게임은 그대로 진행 */
+const LV = { stream:null, ctx:null, an:null, buf:null, val:0 };
+async function openLevel(){
+  if (LV.stream || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    if (!G.active){ stream.getTracks().forEach(t => t.stop()); return; }
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const an = ctx.createAnalyser(); an.fftSize = 512;
+    ctx.createMediaStreamSource(stream).connect(an);
+    Object.assign(LV, { stream, ctx, an, buf:new Uint8Array(an.fftSize) });
+  }catch(_){}
+}
+function closeLevel(){
+  if (LV.stream) LV.stream.getTracks().forEach(t => t.stop());
+  if (LV.ctx) try{ LV.ctx.close(); }catch(_){}
+  Object.assign(LV, { stream:null, ctx:null, an:null, buf:null, val:0 });
+}
+function readLevel(){
+  if (!LV.an) return 0;
+  LV.an.getByteTimeDomainData(LV.buf);
+  let sum = 0; for (let i = 0; i < LV.buf.length; i++){ const v = (LV.buf[i]-128)/128; sum += v*v; }
+  const target = Math.min(1, Math.sqrt(sum/LV.buf.length) * 5);
+  LV.val = target > LV.val ? target : LV.val*0.85 + target*0.15;
+  return LV.val;
+}
+
+/* 판정 상태: 지금 말하면 판정되는지 한눈에 */
+const listenEl = $('#listen'), listenTxt = $('#listenTxt'), lvBars = [...document.querySelectorAll('#listen .lv i')];
+function listenState(){
+  const now = performance.now();
+  if (G.phase === 'cleared') return ['ok', '통과! 다음 벽 준비 중'];
+  if (G.phase === 'bump') return ['bad', '후진 중 · 잠깐 기다리세요'];
+  if (!SR) return ['wait', '심판 모드 · 친구가 판정해요'];
+  if (recErrMsg) return ['bad', '음성 인식 오류 · 심판 모드로 진행'];
+  if (now < ignoreUntil) return ['wait', ignoreUntil === Infinity ? '정답 발음 재생 중 · 듣고 나서 말하세요' : '곧 들어요…'];
+  if (!Rec.on) return ['wait', '마이크 다시 켜는 중…'];
+  if (now - G.heardAt < 450) return ['heard', '들었어요! 확인 중'];
+  return ['live', '지금 말하세요'];
+}
+
 // 화면 위쪽 큰 단어 표지판: 멀리 있는 벽 글씨가 작아도 바로 읽을 수 있게 + 남은 거리 막대
-const signEl = $('#sign'), signWord = $('#signWord'), signTag = $('#signTag'), signBar = $('#signBar');
+const signEl = $('#sign'), signWord = $('#signWord'), signTag = $('#signTag'), signBar = $('#signBar'), signMean = $('#signMean');
 function updateSign(){
-  const w = G.wall;
+  const w = G.wall || (G.phase === 'cleared' ? G.lastWall : null);
   if (!w || G.phase === 'intro'){ if (!signEl.hidden) signEl.hidden = true; return; }
   signEl.hidden = false;
   if (signWord.textContent !== w.display) signWord.textContent = w.display;
+  const mean = S.meaning === 'show' ? (w.mean || '') : '';
+  if (signMean.textContent !== mean) signMean.textContent = mean;
+  const [cls, txt] = listenState();
+  if (listenEl.dataset.s !== cls){ listenEl.className = 'listen ' + cls; listenEl.dataset.s = cls; }
+  if (listenTxt.textContent !== txt) listenTxt.textContent = txt;
+  const lvl = (cls === 'live' || cls === 'heard') ? readLevel() : (readLevel(), 0);
+  lvBars.forEach((b, i) => { const k = Math.max(0, Math.min(1, lvl*1.4 - i*0.16)); b.style.height = (4 + k*16).toFixed(0) + 'px'; });
+  if (G.phase === 'cleared'){ signBar.style.width = '100%'; if (signTag.textContent !== 'CLEAR!'){ signTag.textContent = 'CLEAR!'; signTag.style.color = 'var(--go)'; } return; }
   const zs = w.bumps ? ZBACK : Z0;
   const prox = Math.max(0, Math.min(1, 1 - (w.z - ZHIT) / (zs - ZHIT)));
   signBar.style.width = (prox*100).toFixed(1) + '%';
@@ -1022,7 +1137,7 @@ function render(t){
 
 /* ---------------- init ---------------- */
 renderPlayers(); renderPacks();
-seg('#segSpeed', SPEEDS, 'speed'); seg('#segJudge', JUDGE, 'judge'); seg('#segWalls', WALLS, 'walls');
+seg('#segSpeed', SPEEDS, 'speed'); seg('#segJudge', JUDGE, 'judge'); seg('#segWalls', WALLS, 'walls'); seg('#segMean', MEANING, 'meaning');
 renderSupport(); micState(false);
 if (!SR){ $('#srNote').textContent = '이 브라우저는 음성 인식을 지원하지 않아요. Chrome·Edge에서 열면 자동 판정이 켜져요.'; $('#srNote').className = 'note err'; }
 requestAnimationFrame(frame);
